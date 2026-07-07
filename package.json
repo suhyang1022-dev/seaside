@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "node beach-server.js",
-    "start": "node beach-server.js"
+    "start": "node beach-server.js",
+    "deploy": "vercel --prod"
   }
 }
