@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>전국 주요 해수욕장 날씨</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+      background: linear-gradient(180deg, #e8f4ff 0%, #f7fbff 40%, #ffffff 100%);
+      color: #17324d;
+    }
+    .wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px 16px 48px;
+    }
+    header { margin-bottom: 20px; }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 1.9rem;
+    }
+    .meta {
+      color: #4f6b84;
+      font-size: 0.95rem;
+    }
+    .toolbar {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin: 16px 0 20px;
+    }
+    .toolbar input, .toolbar select, .toolbar button {
+      padding: 10px 12px;
+      border: 1px solid #b8d4ea;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      background: #fff;
+    }
+    .toolbar button {
+      background: #0b6bcb;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+    }
+    .status {
+      padding: 12px 14px;
+      border-radius: 8px;
+      background: #fff;
+      border: 1px solid #cfe3f4;
+      margin-bottom: 18px;
+    }
+    .status.error {
+      color: #b42318;
+      border-color: #fecdca;
+      background: #fff5f5;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+    .card {
+      background: #fff;
+      border: 1px solid #d7e8f6;
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 4px 14px rgba(11, 74, 111, 0.06);
+    }
+    .card h2 {
+      margin: 0 0 4px;
+      font-size: 1.05rem;
+    }
+    .region {
+      display: inline-block;
+      margin-bottom: 10px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #edf6ff;
+      color: #0b6bcb;
+      font-size: 0.8rem;
+    }
+    .temp {
+      font-size: 2rem;
+      font-weight: 700;
+      margin: 8px 0;
+      color: #0b4a6f;
+    }
+    .summary {
+      font-size: 1rem;
+      margin-bottom: 12px;
+      color: #35556f;
+    }
+    .details {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px 12px;
+      font-size: 0.9rem;
+    }
+    .details div {
+      padding: 8px 10px;
+      background: #f7fbff;
+      border-radius: 8px;
+    }
+    .label {
+      display: block;
+      color: #6b8298;
+      font-size: 0.78rem;
+      margin-bottom: 2px;
+    }
+    .card.rainy {
+      background: #12344a;
+      border-color: #0a2233;
+      color: #e7f2fb;
+      box-shadow: 0 6px 18px rgba(8, 30, 48, 0.28);
+    }
+    .card.rainy h2,
+    .card.rainy .temp {
+      color: #ffffff;
+    }
+    .card.rainy .summary {
+      color: #b8d8ef;
+    }
+    .card.rainy .region {
+      background: rgba(255, 255, 255, 0.14);
+      color: #ffffff;
+    }
+    .card.rainy .details div,
+    .card.rainy .sun-box {
+      background: rgba(255, 255, 255, 0.08);
+    }
+    .card.rainy .label {
+      color: #9ec3dd;
+    }
+    .sun-box {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 12px;
+      padding: 10px;
+      background: #fff8e8;
+      border-radius: 10px;
+      border: 1px solid #f2dfb6;
+    }
+    .card.rainy .sun-box {
+      border-color: rgba(255, 255, 255, 0.12);
+    }
+    .sun-item strong {
+      display: block;
+      font-size: 1rem;
+      margin-top: 2px;
+      color: #8a5a00;
+    }
+    .card.rainy .sun-item strong {
+      color: #ffe08a;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>전국 주요 해수욕장 날씨</h1>
+      <p class="meta">기상청 전국 해수욕장 날씨 조회서비스 · 초단기예보 / 파고 / 수온 / 일출·일몰</p>
+      <div id="status" class="status">데이터를 불러오는 중입니다...</div>
+    </header>
+
+    <div class="toolbar">
+      <input id="search" type="search" placeholder="해수욕장 이름 검색">
+      <select id="region">
+        <option value="">전체 지역</option>
+      </select>
+      <button id="refresh" type="button">새로고침</button>
+    </div>
+
+    <div id="grid" class="grid">
+      <div class="empty">로딩 중...</div>
+    </div>
+  </div>
+
+  <script>
+    const statusEl = document.getElementById("status");
+    const gridEl = document.getElementById("grid");
+    const searchEl = document.getElementById("search");
+    const regionEl = document.getElementById("region");
+    const refreshEl = document.getElementById("refresh");
+    let allBeaches = [];
+
+    function renderCards(beaches) {
+      if (!beaches.length) {
+        gridEl.innerHTML = '<div class="empty">검색 결과가 없습니다.</div>';
+        return;
+      }
+
+      gridEl.innerHTML = beaches.map((beach) => {
+        if (beach.error) {
+          return `
+            <article class="card">
+              <span class="region">${beach.region || "-"}</span>
+              <h2>${beach.name}</h2>
+              <p class="summary">데이터를 불러오지 못했습니다.</p>
+            </article>
+          `;
+        }
+
+        return `
+          <article class="card${beach.isRaining ? " rainy" : ""}">
+            <span class="region">${beach.region}</span>
+            <h2>${beach.name}</h2>
+            <div class="temp">${beach.temperature}°C</div>
+            <p class="summary">${beach.sky} · 강수 ${beach.precipitation}</p>
+            <div class="sun-box">
+              <div class="sun-item">
+                <span class="label">일출</span>
+                <strong>${beach.sunrise}</strong>
+              </div>
+              <div class="sun-item">
+                <span class="label">일몰</span>
+                <strong>${beach.sunset}</strong>
+              </div>
+            </div>
+            <div class="details">
+              <div><span class="label">습도</span>${beach.humidity}%</div>
+              <div><span class="label">풍속</span>${beach.wind} m/s</div>
+              <div><span class="label">강수량</span>${beach.rain}</div>
+              <div><span class="label">파고</span>${beach.wave}</div>
+              <div><span class="label">수온</span>${beach.waterTemp}</div>
+              <div><span class="label">예보시각</span>${beach.forecastTime}</div>
+            </div>
+          </article>
+        `;
+      }).join("");
+    }
+
+    function applyFilters() {
+      const keyword = searchEl.value.trim();
+      const region = regionEl.value;
+      const filtered = allBeaches.filter((beach) => {
+        const matchName = !keyword || beach.name.includes(keyword);
+        const matchRegion = !region || beach.region === region;
+        return matchName && matchRegion;
+      });
+      renderCards(filtered);
+    }
+
+    function fillRegions(beaches) {
+      const regions = [...new Set(beaches.map((b) => b.region).filter(Boolean))].sort();
+      regionEl.innerHTML = '<option value="">전체 지역</option>' +
+        regions.map((region) => `<option value="${region}">${region}</option>`).join("");
+    }
+
+    async function loadWeather(force = false) {
+      statusEl.textContent = "데이터를 불러오는 중입니다...";
+      statusEl.classList.remove("error");
+
+      try {
+        const url = force ? "/api/beach-weather?refresh=1" : "/api/beach-weather";
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          throw new Error(data.message || "API 호출에 실패했습니다.");
+        }
+
+        allBeaches = data.beaches;
+        fillRegions(allBeaches);
+        applyFilters();
+
+        const updated = new Date(data.updatedAt).toLocaleString("ko-KR");
+        statusEl.textContent =
+          `기준 발표: ${data.baseDate.replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3")} ${data.baseTime.slice(0, 2)}:${data.baseTime.slice(2, 4)} · 현재 ${data.kstTime} · ${data.count}개 해수욕장 · 갱신 ${updated}`;
+      } catch (error) {
+        statusEl.textContent = error.message;
+        statusEl.classList.add("error");
+        gridEl.innerHTML = '<div class="empty">표시할 데이터가 없습니다.</div>';
+      }
+    }
+
+    searchEl.addEventListener("input", applyFilters);
+    regionEl.addEventListener("change", applyFilters);
+    refreshEl.addEventListener("click", () => loadWeather(true));
+
+    loadWeather();
+  </script>
+</body>
+</html>

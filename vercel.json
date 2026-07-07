@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/beach-weather.js": {
+      "maxDuration": 60
+    }
+  }
+}
